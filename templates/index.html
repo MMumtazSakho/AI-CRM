@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI CRM</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            color: #333;
+        }
+        main {
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        
+        .card {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 15px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-primary { background-color: #4a69bd; color: white; }
+        .btn-primary:hover { background-color: #3a5393; }
+        .btn-danger { background-color: #e74c3c; color: white; }
+        .btn-danger:hover { background-color: #c0392b; }
+        .btn-secondary { background-color: #7f8c8d; color: white; }
+        .btn-secondary:hover { background-color: #616a6b; }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 15px;
+        }
+
+        /* Table */
+        .table-container { overflow-x: auto; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            text-align: left;
+            vertical-align: top;
+        }
+        th {
+            background-color: #f9fafb;
+            font-weight: 600;
+        }
+        tr:nth-child(even) { background-color: #fdfdfd; }
+        .notes-truncate {
+            max-width: 250px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .actions-cell {
+            white-space: nowrap;
+            width: 1%;
+        }
+        
+        /* Sentiment Badge */
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-positive { background-color: #d1fae5; color: #065f46; }
+        .badge-negative { background-color: #fee2e2; color: #991b1b; }
+        .badge-neutral { background-color: #e5e7eb; color: #374151; }
+
+        /* Modal (Pop-up) */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            z-index: 10;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 25px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        /* Form inside Modal */
+        .form-group { margin-bottom: 15px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea { resize: vertical; }
+        .form-actions {
+            margin-top: 20px;
+            text-align: right;
+        }
+        .form-actions .btn { margin-left: 10px; }
+
+        /* Dashboard/Chart */
+        .dashboard-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .dashboard-controls label {
+            font-weight: 600;
+        }
+        .dashboard-controls input[type="date"] {
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        
+        /* <-- NEW CSS FOR UPLOAD FORM --> */
+        .upload-form {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        .upload-form input[type="file"] {
+            font-family: inherit;
+        }
+        .upload-instructions {
+            font-size: 13px;
+            color: #555;
+            margin-top: 10px;
+        }
+        .upload-instructions code {
+            background-color: #f4f4f4;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        /* ----------------------------- */
+
+    </style>
+</head>
+<body>
+
+    <main>
+        
+        <div class="card">
+            <h2>Dashboard Stats</h2>
+            <div class="dashboard-controls">
+                <div>
+                    <label for="startDate">Start Date:</label>
+                    <input type="date" id="startDate">
+                </div>
+                <div>
+                    <label for="endDate">End Date:</label>
+                    <input type="date" id="endDate">
+                </div>
+                <button id="filterBtn" class="btn btn-primary" style="background-color: #16a085;">Filter</button>
+            </div>
+            
+            <div class="chart-container">
+                <canvas id="sentimentChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Bulk Upload Leads</h2>
+            <form action="{{ url_for('upload_file') }}" method="POST" enctype="multipart/form-data">
+                <div class="upload-form">
+                    <input type="file" name="file" accept=".csv, .xlsx" required>
+                    <button type="submit" class="btn btn-secondary">Upload File</button>
+                </div>
+                <p class="upload-instructions">
+                    <strong>Important:</strong> Ensure your .csv or .xlsx file has the column headers: 
+                    <code>name</code>, <code>email</code>, <code>phone</code>, <code>status</code>, and <code>notes</code>.
+                    The <code>name</code> column is required.
+                </p>
+            </form>
+        </div>
+        
+        <div class="card">
+            <div class="header">
+                <h2>Customer Leads</h2>
+                <button id="addLeadBtn" class="btn btn-primary">+ Add New Lead</button>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Contact</th>
+                            <th>Status</th>
+                            <th>Notes</th>
+                            <th>Sentiment (AI)</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if not leads %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 20px;">
+                                No leads found. Click 'Add New Lead' to get started!
+                            </td>
+                        </tr>
+                        {% endif %}
+                        
+                        {% for lead in leads %}
+                        <tr>
+                            <td>{{ lead.name }}</td>
+                            <td>
+                                <div>{{ lead.email }}</div>
+                                <div style="color: #555; font-size: 13px;">{{ lead.phone }}</div>
+                            </td>
+                            <td>{{ lead.status }}</td>
+                            <td>
+                                <div class="notes-truncate">{{ lead.notes or 'N/A' }}</div>
+                            </td>
+                            <td>
+                                {% if lead.sentiment == 'positive' %}
+                                    <span class="badge badge-positive">Positive</span>
+                                {% elif lead.sentiment == 'negative' %}
+                                    <span class="badge badge-negative">Negative</span>
+                                {% else %}
+                                    <span class="badge badge-neutral">Neutral</span>
+                                {% endif %}
+                            </td>
+                            <td class="actions-cell">
+                                <button onclick="openEditModal({{ lead.id }})" class="btn" style="background-color: #ecf0f1; color: #34495e; margin-right: 5px;">Edit</button>
+                                <a href="{{ url_for('delete_lead', id=lead.id) }}" 
+                                   onclick="return confirm('Are you sure you want to delete this lead?')" 
+                                   class="btn btn-danger">Delete</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <div id="leadModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="modalTitle">Add New Lead</h2>
+            <form id="leadForm" method="POST">
+                <div class="form-group">
+                    <label for="name">Name</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email">
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone</label>
+                    <input type="tel" id="phone" name="phone">
+                </div>
+                <div class="form-group">
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        <option>New Lead</option>
+                        <option>Contacted</option>
+                        <option>Qualified</option>
+                        <option>Proposal Sent</option>
+                        <option>Won</option>
+                        <option>Lost</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="notes">Notes (AI Sentiment Analysis)</label>
+                    <textarea id="notes" name="notes" rows="4" placeholder="Type customer notes here..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="cancelBtn" class="btn" style="background-color: #ecf0f1; color: #34495e;">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const modal = document.getElementById('leadModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const leadForm = document.getElementById('leadForm');
+        
+        const formName = document.getElementById('name');
+        const formEmail = document.getElementById('email');
+        const formPhone = document.getElementById('phone');
+        const formStatus = document.getElementById('status');
+        const formNotes = document.getElementById('notes');
+
+        function closeModal() {
+            modal.style.display = 'none';
+        }
+
+        function openAddModal() {
+            modalTitle.innerText = 'Add New Lead';
+            leadForm.action = '{{ url_for("add_lead") }}';
+            formName.value = '';
+            formEmail.value = '';
+            formPhone.value = '';
+            formStatus.value = 'New Lead';
+            formNotes.value = '';
+            modal.style.display = 'block';
+        }
+        
+        async function openEditModal(leadId) {
+            modalTitle.innerText = 'Edit Lead';
+            leadForm.action = `/lead/edit/${leadId}`;
+            try {
+                const response = await fetch(`/api/lead/${leadId}`);
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const lead = await response.json();
+                formName.value = lead.name;
+                formEmail.value = lead.email;
+                formPhone.value = lead.phone;
+                formStatus.value = lead.status;
+                formNotes.value = lead.notes;
+                modal.style.display = 'block';
+            } catch (error) {
+                console.error('Failed to fetch lead data:', error);
+                alert('Failed to load lead data. Please try again.');
+            }
+        }
+
+        document.getElementById('addLeadBtn').addEventListener('click', openAddModal);
+        document.getElementById('cancelBtn').addEventListener('click', closeModal);
+        window.addEventListener('click', function(event) {
+            if (event.target == modal) {
+                closeModal();
+            }
+        });
+    </script>
+    
+    <script>
+        const ctx = document.getElementById('sentimentChart').getContext('2d');
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        const filterBtn = document.getElementById('filterBtn');
+        let sentimentChart = null;
+
+        async function fetchAndDrawChart() {
+            const startDate = startDateInput.value;
+            const endDate = endDateInput.value;
+            let apiUrl = '/api/sentiment-stats';
+            
+            if (startDate && endDate) {
+                apiUrl += `?start=${startDate}&end=${endDate}`;
+            } else if (startDate || endDate) {
+                alert("Please fill in both the Start Date and End Date to filter.");
+                return;
+            }
+            
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch statistics data');
+                }
+                const data = await response.json();
+                const chartLabels = ['Positive', 'Negative', 'Neutral'];
+                const chartData = [ data.positive, data.negative, data.neutral ];
+                
+                if (sentimentChart) {
+                    sentimentChart.destroy();
+                }
+
+                sentimentChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: chartLabels,
+                        datasets: [{
+                            label: 'Sentiment Count',
+                            data: chartData,
+                            backgroundColor: [
+                                'rgba(75, 192, 192, 0.6)', // Green (Positive)
+                                'rgba(255, 99, 132, 0.6)', // Red (Negative)
+                                'rgba(201, 203, 207, 0.6)'  // Gray (Neutral)
+                            ],
+                            borderColor: [
+                                'rgb(75, 192, 192)',
+                                'rgb(255, 99, 132)',
+                                'rgb(201, 203, 207)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { stepSize: 1 }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error("Error drawing chart:", error);
+            }
+        }
+        
+        filterBtn.addEventListener('click', fetchAndDrawChart);
+        document.addEventListener('DOMContentLoaded', fetchAndDrawChart);
+    </script>
+
+</body>
+</html>
